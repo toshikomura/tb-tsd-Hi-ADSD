@@ -1,0 +1,234 @@
+Trabalho de Tópicos em Sistemas Distribuidos
+
+Aluno: Gustavo Toshi Komura
+GRR: GRR20102342
+
+Tema: Implementação do algoritmo Hi-ADSD, com uma pequena modificação, ao invés de testar 
+um cluster por rodada é feito os log N testes em uma única rodada.
+
+Procedimentos:
+
+1 - Incialmente foi reaproveitado o algoritmo visto em sala de aula. Juntamente com as 
+modificações requisitadas em laboratório, este algoritmo se tornou o Adpative-SD.
+
+1.1 - Este procedimento teve a inclusão dos arquivos "smlp.h", "smpl.c", "makefile", que 
+estão na página da disciplina, além do arquivo "temp.c" que foi sendo construido ao se fazer os 
+exercicio propostos.
+
+2 - Como sugerido pela especificação, foi reaproveitado o arquvio "cisj.c", que também 
+está na página da disciplina. Neste arquvio foi feita uma pequena modificação, que consistiu 
+na substituição da função "main" por "cisj". Além deste arquvio, foi criado um ".h" para 
+incluir as funções do "cisj.c" no programa principal.
+
+3 - Com relação ao desemvolvimento no arquvio temp.c:
+
+3.1 - Incialmente era necessário saber a quantidade de clusters, que seria necessário a partir 
+da entrada "n", que é a quantidade de nodos. Para isso foi incluido o seguinte código
+"max_cluster =(int) ceil( log2(n) );", onde se calcula o teto de lg (N), que é quantidade 
+de cluster necessário para uma dada quantidade "N" de nodos.
+
+3.2 - Foram incluidas mais 2 variáveis na estrutura "tnodo":
+
+    3.2.1 - "int *testedup;" vetor que possui os resultados dos testes.
+            Incialmente este vetor é totalmente setado com -1, que indica que ele não sabe qual 
+            o estado de nodo "i", ele só seta como 0 o seu própio indicador.
+            Esse vetor é válido para todos os nodos.
+
+    3.2.2 - "int cluster;" informa qual o cluster que o nodo está em um determinado momento.
+            Inicialmente esta variável é setada com o valor 1, que indica que o nodo esta no 
+            cluster 1.
+            Esse valor é válido para todos os nodos.
+
+3.3 - A maioria das modificação foram fetias no "switch(event)", mais especificamento no 
+"case test:":
+
+    3.3.1 - Já sabendo em qual cluster o nodo "i" estaria, foram necessários saber quais os nodos 
+que ele teria que testar, e isso foi obtido recorrendo a função existente no "cisj.c" com o 
+seguinte código "nodes = cis(token, nodo[token].cluster);".
+            "nodes" é o vetor que contém os nodos que estão no cluster do nodo "i".
+            "token" é o nodo "i".
+            "nodo[token].cluster" é o cluster que o nodo "i" está em determinado memento.
+
+    3.3.2 - Sabendo os nodos que estão no cluster, incia-se as buscas por um nodo sem falha 
+no vetor "nodes".
+        3.3.2.1 - Se todos os nodos estiverem falhos no cluster, então o nodo "i" testou todos, 
+                portanto ele sabe o estado de todos eles no cluster atual, e já tem todos os nodos 
+                atualizados.
+        3.3.2.2 - Caso ele encontre um nodo sem falha no cluster, o nodo "i" pega informações dos 
+                nodos que ele ainda não possui informação do nodo sem falha que ele acabou de testar.
+                Para pegar estas informações ele, o nodo "i", não deve atualizar os nodos que estavam 
+                nos seus clusters anteriores, juntamente com o nodo que ele acabou de testar e 
+                ele mesmo.
+
+3.4 - Na impressão do log é feita duas verficações:
+
+    3.4.1 - "if (num_cluster != nodo[token].cluster)". Esta checagem é feita somente para imprimir
+            em qual cluster que o teste está sendo executado.
+            "num_cluster" checa se os nodos mudaram de cluster ou não.
+            "nodo[token].cluster" é o cluster que o nodo esta em um determinado momento.
+
+    3.4.2 - "if (nodes->nodes[j] < n)". Esta checagem é necessária, pois em casos que o número 
+            de nodos existentes não for potência de dois, um nodo pode estar testando um nodo 
+            que não existe. Por exemplo: Um sistema com 7 nodos, o nodo 3 no cluster 3, iria 
+            testar o nodo 7, no entanto o nodo 7 não existe.
+
+3.5 - Determinando próximo escalonamento:
+
+    3.5.1 - "if ( nodo[token].cluster < max_cluster )". Se o nodo ainda não chegou no último 
+            cluster ele é escalonado com o tempo zero, pois o teste do próximo cluster deve ser 
+            feito nesta mesma rodada.
+    3.5.2 - Caso esteja no último cluster a ser testado, ele é escalonado para um tempo que não 
+            seja zero, pois ele não pode executar o teste do primeiro cluster nesta mesma rodada.
+
+4 - LOGs:
+
+    Os logs da execução do programa estão na página, logo acima do relátorio.
+    Temos aqui a previsão do que deveria ocorrer com determinadas entradas e as respostas 
+    requisitadas na especificação do trabalho.
+    Na resposta de a) foi considerado a latência, como a quantidade de rodadas que todos os nodos
+    demoravam para descobrir o novo evento. Na resposta de b) foi considerado a quantidade de testes 
+    incluindo os testes em nodos com falha, ou seja, no caso do nodo 1 testar 3 com falha e depois 
+    testar o nodo 2 sem falha, foi considerado como 2 testes.
+    Na saida onde temos: cluster 0: 0 testa 1-s, quer dizer que o nodo 0 testou o nodo 1 sem falha.
+    Na saida onde temos: cluster 2: 0 testa 2-f, quer dizer que o nodo 0 testou o nodo 2 com falha.
+
+    4.1 - LOG test 1
+        Entradas:
+            nodos: 4
+            falha: nodo 2 tempo 40
+            reparo: nodo 2 tempo 70
+         Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s e 3 testa 2-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 testa 0-s e 3 testa 1-s
+            2 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s e 3 testa 2-f
+            cluster 2: 0 testa 2-f, 0 testa 3-s, 1 testa 3-s e 3 testa 1-s
+            3 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s e 3 testa 2-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s e 3 testa 1-s
+
+            R - a) 1 rodada. b) 7 testes executados.
+                a) 1 rodada. b) 6 testes executados.
+
+   4.2 - LOG test 2
+        Entradas:
+            nodos: 3
+            falha: nodo 2 tempo 40
+            reparo: nodo 2 tempo 70
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s e 1 testa 0-s
+            cluster 2: 0 testa 2-s, 1 testa 2-s e 2 testa 0-s
+            2 rodada
+            cluster 1: 0 testa 1-s e 1 testa 0-s
+            cluster 2: 0 testa 2-f e 1 testa 2-f
+            3 rodada
+            cluster 1: 0 testa 1-s e 1 testa 0-s
+            cluster 2: 0 testa 2-s e 1 testa 2-s
+
+            R - a) 1 rodada. b) 4 testes executados.
+                a) 1 rodada. b) 4 testes executados.
+
+    4.3 - LOG test 3
+        Entradas:
+            nodos: 3
+            falha: nodo 0, 1 e 2 tempo 40
+            reparo: nodo 0, 1 e 2 tempo 50
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s e 1 testa 0-s
+            cluster 2: 0 testa 2-s, 1 testa 2-s e 2 testa 0-s
+            2 rodada
+            cluster 1: 0 testa 1-s e 1 testa 0-s
+            cluster 2: 0 testa 2-s, 1 testa 2-s e 2 testa 0
+
+            R - a) 1 rodada. b) 5 testes executados.
+
+    4.4 - LOG test 4
+        Entradas:
+            nodos: 4
+            falha: nodo 0 e 2 tempo 10
+            reparo: nodo 0 e 2 tempo 30
+        Saida:
+            1 rodada
+            cluster 1: 1 testa 0-f e 3 testa 2-f
+            cluster 2: 1 testa 3-s e 3 testa 1-s
+            2 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s e 3 testa 2-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 testa 0-s e 3 testa 1-s
+
+            R - a) 1 rodada. b) 4 testes executados.
+                a) 1 rodada. b) 8 testes executados.
+
+    4.5 - LOG test 5
+        Entradas:
+            nodos: 4
+            falha: nodo 0 e 2 tempo 60
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s e 3 testa 2-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 teata 0-s e 3 testa 1-s
+            2 rodada
+            cluster 1: 1 testa 0-f e 3 testa 2-f
+            cluster 2: 1 testa 3-s e 3 testa 1-s
+
+            R - a) 1 rodada. b) 4 testes executados.
+
+    4.6 - LOG test 6
+        Entradas:
+            nodos: 4
+            falha: nodo 0 e 3 tempo 60
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s e 3 testa 2-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 teata 0-s e 3 testa 1-s
+            2 rodada
+            cluster 1: 1 testa 0-f e 2 testa 3-f
+            cluster 2: 1 testa 3-f, 1 testa 2-s, 2 testa 0-f e 2 testa 1-s
+
+            R - a) 1 rodada. b) 6 testes executados.
+
+    4.7 - LOG test 7
+        Entradas:
+            nodos: 8
+            falha: nodo 0, 3, 4 e 7 tempo 60
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s, 3 testa 2-s,
+                       4 testa 5-s, 5 testa 4-s, 6 testa 7-s e 7 testa 6-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 testa 0-s, 3 testa 1-s,
+                       4 testa 6-s, 5 testa 7-s, 6 testa 4-s e 7 testa 5-s
+            cluster 3: 0 testa 4-s, 1 testa 5-s, 2 testa 6-s, 3 testa 7-s,
+                       4 testa 0-s, 5 testa 1-s, 6 testa 2-s e 7 testa 3-s
+            2 rodada
+            cluster 1: 1 testa 0-f, 2 testa 3-f, 5 testa 4-f e 6 testa 7-f
+            cluster 2: 1 testa 3-f, 1 testa 2-s, 2 testa 0-f, 2 testa 1-s
+                       5 testa 7-f, 5 testa 6-s, 6 testa 4-f e 6 testa 5-s
+            cluster 3: 1 testa 5-s, 2 testa 6-s, 5 testa 1-s e 6 testa 2-s
+            R - a) 1 rodada. b) 16 testes executados.
+
+    4.8 - LOG test 8
+        Entradas:
+            nodos: 7
+            falha: nodo 0, 3, 4 e 6 tempo 60
+        Saida:
+            1 rodada
+            cluster 1: 0 testa 1-s, 1 testa 0-s, 2 testa 3-s, 3 testa 2-s,
+                       4 testa 5-s e 5 testa 4-s
+            cluster 2: 0 testa 2-s, 1 testa 3-s, 2 testa 0-s, 3 testa 1-s,
+                       4 testa 6-s, 5 testa 6-s e 6 testa 4-s
+            cluster 3: 0 testa 4-s, 1 testa 5-s, 2 testa 6-s, 3 testa 6-s,
+                       4 testa 0-s, 5 testa 1-s, 6 testa 2-s
+            2 rodada
+            cluster 1: 1 testa 0-s, 2 testa 3-f e 5 testa 4-s
+            cluster 2: 1 testa 3-f, 1 testa 2-s, 2 testa 0-f, 2 testa 1-s e
+                       5 testa 6-f
+            cluster 3: 1 testa 5-s, 2 testa 6-f, 2 testa 5-s e 5 testa 1-s
+            R - a) 1 rodada. b) 12 testes executados.
+
+
+
+
+
+
